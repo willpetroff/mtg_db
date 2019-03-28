@@ -1,0 +1,39 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="add-card-modal">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Add Card to Collection</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body" id="file-form">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <div class="form-group">
+                            <label for="card-name">Card Name:</label>
+                            <input type="text" class="form-control new-card-input" id="card-name" name="card_name">
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="form-group">
+                            <label for="card-set">Set:</label>
+                            <select class="form-control new-card-input" name="card_set" id="card-set">
+                                {% for set in sets %}
+                                <option value="{{set.set_id}}">{{set.name}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-sm-2">
+                        <div class="form-group">
+                            <label for="card-count">Count:</label>
+                            <input type="text" class="form-control new-card-input" id="card-count" name="card_count">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" id="submit-new-card">Add Card</button>
+            </div>
+        </div><!-- end modal-content -->
+    </div><!-- end modal-dialog -->
+</div><!-- end add-card-modal -->

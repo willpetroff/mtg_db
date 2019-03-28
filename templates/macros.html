@@ -1,0 +1,16 @@
+{% macro paginate(pagination, url_target, url_vals={}, args_dict={}) %}
+{% set kwargs = args_dict.update(url_vals) %}
+<nav aria-label="Case Lists Navigation">
+    <ul class="pagination justify-content-center">
+        {% if pagination["NoFirst"] %}
+        <li class="page-item" title="First page"><a class="page-link" href="{{url_for(url_target, page=1, **args_dict)}}" tabindex="-1">&laquo;</a></li>
+        {% endif %}
+        {% for page in pagination["PageList"] %}
+        <li class="page-item {{'active' if page==pagination['CurrentPage']}}"><a class="page-link" href="{{url_for(url_target, page=page, **args_dict)}}">{{page}}</a></li>
+        {% endfor %}
+        {% if pagination["NoMax"] %}
+        <li class="page-item" title="Last page"><a class="page-link" href="{{url_for(url_target, page=pagination['MaxPage'], **args_dict)}}" tabindex="-1">&raquo;</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endmacro %}

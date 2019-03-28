@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Scraper {{multiverse_id}}</title>
+</head>
+<body>
+    <p id="scrape-notice">Scraping Multiverse ID <strong id="scrape-count">{{multiverse_id}}</strong></p>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){ 
+        window.location.href = "//localhost:{{port}}/scrape?mid=" + "{{multiverse_id + 1}}";
+    }, false);
+</script>
+</html>

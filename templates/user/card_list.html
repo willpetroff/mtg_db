@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% from 'macros.html' import paginate %}
+
+{% block title %}Card List{% endblock %}
+
+{% block head %}
+<style>
+    .update-card-count {
+        cursor: pointer;
+    }
+    .update-card-count.fa-plus-circle:hover {
+        color: green;
+    }
+
+    .update-card-count.fa-minus-circle:hover {
+        color: red;
+    }
+    button[type=submit],
+    #add-card {
+        margin-top: 2rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block modals %}
+{% include 'modals/add_card.html' %}
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-11">
+                <form action="" method="POST">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label for="filter-name">Card Name:</label>
+                                <input type="text" class="form-control" name="name" value="{{filter_dict['name'] if filter_dict['name']}}">
+                            </div>
+                        </div>
+                        <div class="col-sm-3">
+                            <div class="form-group">
+                                <label for="filter-set">Set:</label>
+                                <input type="text" class="form-control" name="set" value="{{filter_dict['set'] if filter_dict['set']}}">
+                            </div>
+                        </div>
+                        <div class="col-sm-3"></div>
+                        <div class="col-sm-3 text-right">
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary">Filter</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="col-sm-1">
+                <button class="btn btn-info" id="add-card">Add Card</button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-3">
+                <a {% if not request.args.get('order', '') == 'name' %}href="{{url_for('user_card_list', user_id=g.user.user_id, page=current_page, order='name', **filter_dict)}}"{% endif %}>Card</a>
+            </div>
+            <div class="col-sm-1">
+                <a {% if not request.args.get('order', '') == 'rarity' %}href="{{url_for('user_card_list', user_id=g.user.user_id, page=current_page, order='rarity', **filter_dict)}}"{% endif %}>Rarity</a>
+            </div>
+            <div class="col-sm-1">
+                <a {% if not request.args.get('order', '') == 'count' %}href="{{url_for('user_card_list', user_id=g.user.user_id, page=current_page, order='count', **filter_dict)}}"{% endif %}>Count</a>
+            </div>
+            <div class="col-sm-3">
+                <a {% if not request.args.get('order', '') == 'set' %}href="{{url_for('user_card_list', user_id=g.user.user_id, page=current_page, order='set', **filter_dict)}}"{% endif %}>Set</a>
+            </div>
+            <div class="col-sm-2">
+                Cost
+            </div>
+            <div class="col-sm-1">
+                <a {% if not request.args.get('order', '') == 'value' %}href="{{url_for('user_card_list', user_id=g.user.user_id, page=current_page, order='value', **filter_dict)}}"{% endif %}>Value</a>
+            </div>
+        </div>
+        <hr>
+        {% for my_card in my_cards %}
+        <div class="row">
+            <div class="col-sm-3">
+                {{my_card.card.card_name}}
+            </div>
+            <div class="col-sm-1">
+                {{my_card.card.card_rarity}}
+            </div>
+            <div class="col-sm-1">
+                {{my_card.card_count}}
+            </div>
+            <div class="col-sm-3">
+                {{my_card.card.card_set.name}}
+            </div>
+            <div class="col-sm-2">
+                {{my_card.card.card_display_cost}}
+            </div>
+            <div class="col-sm-1">
+                <span class="card-cost" data-card-count="{{my_card.card_count}}">{{my_card.card.get_current_value()}}</span>
+            </div>
+            <div class="col-sm-1">
+                <i class="fas fa-plus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="1"></i>
+                &emsp;
+                <i class="fas fa-minus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="-1"></i>
+            </div>
+        </div>
+        {% endfor %}
+        <br>
+        <div class="row">
+            <div class="col-sm-12">
+                {% set filters = filter_dict.update({'order': request.args.get('order', '')}) %}
+                {{ paginate(pagination, 'user_card_list', url_vals={'user_id': g.user.user_id}, args_dict=filter_dict) }}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    $('.update-card-count').click(function(){
+        var $item = $(this);
+        var formData = new FormData();
+        formData.append('owned_card_id', $item.data('card-id'));
+        formData.append('card_modifier', $item.data('count'));
+        $.ajax({
+            type: 'POST',
+            contentType: false,
+            processData: false,
+            async:true,
+            url: "{{url_for('api_count_update')}}",
+            data: formData,
+            success: function(data){
+                if (data.success){
+                    window.location.reload();
+                } else {
+                    alert(data.err);
+                }
+                return true
+            },
+            error: function(data){
+                alert('An error has occurred trying to communicate with the server; please try again. If the error persists, please contact the webmaster.');
+            }
+        });
+    });
+
+    $('#add-card').click(function(){
+        $('.form-control.new-card-input').val('');
+        $('#add-card-modal').modal('show');
+    });
+
+    $('#submit-new-card').click(function(){
+        var $item = $(this);
+        var formData = new FormData();
+        collectInputVals('new-card-input', formData);
+        submitFormGeneral('', formData, "{{url_for('api_card_collection_add')}}");
+    });
+</script>
+{% endblock %}

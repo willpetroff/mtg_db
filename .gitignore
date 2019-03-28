@@ -1,0 +1,6 @@
+*.pyc
+.idea
+.vscode
+venv/
+flaskapp.cfg
+__pycache__/
