@@ -1,0 +1,35 @@
+<div class="modal fade" tabindex="-1" role="dialog" id="edit-owned-card-modal">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Update Owned Card Details: <span id="owned-card-name"></span></h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body" id="owned-card-form">
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label for="owned-card-count">Card Count (Total):</label>
+                                <input type="number" class="form-control owned-card-input" id="owned-card-count" name="card_count">
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label for="owned-card-foil">Foil Count:</label>
+                                <input type="number" class="form-control owned-card-input" id="owned-card-foil" name="card_foil">
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="form-group">
+                                <label for="owned-card-deck">In-Deck Count:</label>
+                                <input type="text" class="form-control owned-card-input" id="owned-card-deck" name="in_deck_count">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" id="update-owned-card"><i class="fas fa-check"></i>&nbsp;Update</button>
+                </div>
+            </div><!-- end modal-content -->
+        </div><!-- end modal-dialog -->
+    </div><!-- end add-card-modal -->

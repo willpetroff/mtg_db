@@ -67,7 +67,7 @@ def user_card_list(user_id):
         if order_by == 'set':
             my_cards = my_cards.join(models.Set)
         if order_by == 'value':
-            my_cards = my_cards.outerjoin(models.CardValue)
+            my_cards = my_cards.outerjoin(models.CardValue).filter(models.CardValue.created >= models.Card.value_last_updated)
         my_cards = my_cards.order_by(order_by_dict[order_by])
     my_cards, pagination = paginate(my_cards, page, per_page=100)
     filter_dict = {
@@ -105,7 +105,7 @@ def scrape():
 def update_prices_all():
     print('test')
     @after_this_request
-    def worker_task(response):
+    def worker_task(resp):
         cards = models.Card.query.all()
         for card in cards:
             attempts = 0
@@ -142,7 +142,7 @@ def update_prices_all():
                 print("Error: {}".format(err))
             sleep(.5)
             print("Price is:", new_value.card_value_mid_current, card.wotc_id, card.card_set.name, card.card_name)
-        return response
+        return resp
     return "Card Prices Updating -- Please Wait"
 
 
@@ -232,24 +232,6 @@ API CALLS
 """
 
 
-@app.route('/api/count/update', methods=["POST"])
-def api_count_update():
-    if request.form:
-        owned_card = models.OwnedCard.query.filter_by(owned_card_id=request.form.get('owned_card_id', None)).first_or_404()
-        owned_card.card_count += request.form.get('card_modifier', 0, type=int)
-        if owned_card.card_count <= 0:
-            err = owned_card.delete_object()
-            if err:
-                return jsonify(success=False, err=err)
-            return jsonify(success=True)
-        err = owned_card.update_object()
-        if err:
-            return jsonify(success=False, err=err)
-        return jsonify(success=True)
-    else:
-        abort(404)
-
-
 @app.route('/api/card/collection/add', methods=["POST"])
 def api_card_collection_add():
     if request.form:
@@ -271,6 +253,33 @@ def api_card_collection_add():
         return jsonify(success=True, reload=True)
     else:
         return jsonify(success=False, err="The server did not receive any data.")
+
+
+@app.route('/api/card/count/update', methods=["POST"])
+def api_card_count_update():
+    if request.form:
+        owned_card = models.OwnedCard.query.filter_by(owned_card_id=request.form.get('owned_card_id', None)).first_or_404()
+        owned_card.card_count += request.form.get('card_modifier', 0, type=int)
+        if owned_card.card_count <= 0:
+            err = owned_card.delete_object()
+            if err:
+                return jsonify(success=False, err=err)
+            return jsonify(success=True)
+        err = owned_card.update_object()
+        if err:
+            return jsonify(success=False, err=err)
+        return jsonify(success=True)
+    else:
+        abort(404)
+
+
+@app.route('/api/card/get', methods=["POST"])
+def api_card_get():
+    if request.form:
+        owned_card = models.OwnedCard.query.filter_by(owned_card_id=request.form.get('owned_card_id', None)).first_or_404()
+        return jsonify(success=True, card_info=owned_card.serialize())
+    else:
+        return jsonify(success=False, err="The server failed to receive any data.")
 
 
 """

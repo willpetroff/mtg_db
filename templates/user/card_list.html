@@ -15,16 +15,27 @@
     .update-card-count.fa-minus-circle:hover {
         color: red;
     }
+    .edit-card-details:hover {
+        color: steelblue;
+        cursor: pointer;
+    }
     button[type=submit],
     #add-card {
         margin-top: 2rem;
         cursor: pointer;
+    }
+
+    .row.card-row {
+        border-bottom: 1px solid #ddd;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
     }
 </style>
 {% endblock %}
 
 {% block modals %}
 {% include 'modals/add_card.html' %}
+{% include 'modals/edit_owned_card.html' %}
 {% endblock %}
 
 {% block content %}
@@ -81,26 +92,26 @@
         </div>
         <hr>
         {% for my_card in my_cards %}
-        <div class="row">
-            <div class="col-sm-3">
-                {{my_card.card.card_name}}
+        <div class="row card-row">
+            <div class="col-sm-6 col-md-3">
+                {{my_card.card.card_name}}&nbsp;<i class="fas fa-edit float-right edit-card-details" data-owned-card-id="{{my_card.owned_card_id}}"></i>
             </div>
-            <div class="col-sm-1">
+            <div class="col-sm-3 col-md-1">
                 {{my_card.card.card_rarity}}
             </div>
-            <div class="col-sm-1">
+            <div class="col-sm-3 col-md-1">
                 {{my_card.card_count}}
             </div>
-            <div class="col-sm-3">
+            <div class="col-sm-12 col-md-3">
                 {{my_card.card.card_set.name}}
             </div>
-            <div class="col-sm-2">
+            <div class="col-sm-6 col-md-2">
                 {{my_card.card.card_display_cost}}
             </div>
-            <div class="col-sm-1">
+            <div class="col-sm-6 col-md-1">
                 <span class="card-cost" data-card-count="{{my_card.card_count}}">{{my_card.card.get_current_value()}}</span>
             </div>
-            <div class="col-sm-1">
+            <div class="col-sm-12 col-md-1">
                 <i class="fas fa-plus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="1"></i>
                 &emsp;
                 <i class="fas fa-minus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="-1"></i>
@@ -130,7 +141,7 @@
             contentType: false,
             processData: false,
             async:true,
-            url: "{{url_for('api_count_update')}}",
+            url: "{{url_for('api_card_count_update')}}",
             data: formData,
             success: function(data){
                 if (data.success){
@@ -156,6 +167,36 @@
         var formData = new FormData();
         collectInputVals('new-card-input', formData);
         submitFormGeneral('', formData, "{{url_for('api_card_collection_add')}}");
+    });
+
+    $('.edit-card-details').click(function(){
+        var $item = $(this);
+        var formData = new FormData();
+        formData.append('owned_card_id', $item.data('owned-card-id'));
+        $.ajax({
+            type: 'POST',
+            contentType: false,
+            processData: false,
+            async:true,
+            url: "{{url_for('api_card_get')}}",
+            data: formData,
+            success: function(data){
+                if (data.success){
+                    var cardInfo = data.card_info;
+                    //console.log(cardInfo);
+                    for (var item in cardInfo) {
+                        $('#owned-card-form [name=' + item + ']').val(cardInfo[item]);
+                    }
+                    $('#edit-owned-card-modal').modal('show');
+                } else {
+                    alert(data.err);
+                }
+                return true
+            },
+            error: function(data){
+                alert('An error has occurred trying to communicate with the server; please try again. If the error persists, please contact the webmaster.');
+            }
+        });
     });
 </script>
 {% endblock %}
