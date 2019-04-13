@@ -1,9 +1,11 @@
+import json
+import requests
+
 from datetime import datetime, date
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
 
 db = SQLAlchemy()
-
 
 class BaseModel:
     def add_object(self, path=None, action=None, user_id=None, user_type=None, user_agent=None):
@@ -176,6 +178,15 @@ class Card(db.Model, BaseModel):
             return self.card_values[-1].card_foil_value
         else:
             return "0.00"
+
+    def get_card_img(self, url=None, scryfall=True):
+        if not url and scryfall:
+            url = "https://api.scryfall.com/cards/multiverse/{}".format(self.wotc_id)
+        r = requests.get(url, allow_redirects=False)
+        if r.status_code != 200:
+            return False
+        card = json.loads(r.text)
+        return card['image_uris']['normal']
             
 
 class CardRuling(db.Model, BaseModel):
