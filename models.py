@@ -138,6 +138,7 @@ class Card(db.Model, BaseModel):
     created = db.Column(db.DateTime, default=datetime.utcnow)
     updated = db.Column(db.DateTime)
     wotc_id = db.Column(db.Integer)  # multiverse_id
+    card_draft_rating = db.Column(db.Numeric(6,3), default=0)
     card_name = db.Column(db.String(255))
     set_id = db.Column(db.Integer, db.ForeignKey('wotc_set.set_id', ondelete="CASCADE"))
     block_id = db.Column(db.Integer, db.ForeignKey('wotc_block.block_id'), default=None)
@@ -158,6 +159,7 @@ class Card(db.Model, BaseModel):
     card_artist = db.Column(db.String(100))
     has_foil = db.Column(db.Boolean, default=False)
     value_last_updated = db.Column(db.Date, default=date.today)
+    card_img_uri = db.Column(db.String(255))
 
     card_set = db.relationship('Set', foreign_keys=[set_id])
     card_values = db.relationship('CardValue')
@@ -180,13 +182,19 @@ class Card(db.Model, BaseModel):
             return "0.00"
 
     def get_card_img(self, url=None, scryfall=True):
+        if self.card_img_uri:
+            return self.card_img_uri
         if not url and scryfall:
             url = "https://api.scryfall.com/cards/multiverse/{}".format(self.wotc_id)
         r = requests.get(url, allow_redirects=False)
         if r.status_code != 200:
             return False
         card = json.loads(r.text)
-        return card['image_uris']['normal']
+        self.card_img_uri = card['image_uris']['normal']
+        err = self.update_object()
+        if err:
+            return card['image_uris']['normal']
+        return self.card_img_uri
             
 
 class CardRuling(db.Model, BaseModel):

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Pack{% endblock %}
+
+{% block head %}
+<style>
+    .card-item {
+        padding-bottom: .5rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block modals %}
+{% endblock %}
+
+{% block content %}
+<section>
+    <div class="container">
+        <div class="row">
+            {% for card in pack %}
+            <div class="col-sm-2">
+                {% set card_uri = card.get_card_img() %}
+                {% if card_uri %}
+                <img src="{{card_uri}}" alt="" class="img-fluid card-item" title="{{card.card_name}}">
+                {% else %}
+                <span>{{card.card_name}} | {{card.card_rarity}}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block javascripts %}
+{% endblock %}
