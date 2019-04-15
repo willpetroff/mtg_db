@@ -11,7 +11,7 @@ from gatherer_api import MTGDataScraper
 from locallibrary import paginate, pretty_exception
 from random import randint, uniform
 from scryfall_api import ScryfallAPI
-from sqlalchemy import case
+from sqlalchemy import case, func, not_
 from time import sleep
 
 
@@ -78,6 +78,16 @@ def user_card_list(user_id):
     sets = models.Set.query.order_by(models.Set.name).all()
     return render_template('user/card_list.html', my_cards=my_cards, pagination=pagination, current_page=page, filter_dict=filter_dict, sets=sets)
 
+
+@app.route("/<int:set_id>/pack")
+def display_card_pack(set_id):
+    pack = generate_pack(set_id)
+    return render_template('card_pack.html', pack=pack)
+
+
+"""
+FUNCTION-CENTRIC ROUTES
+"""
 
 @app.route('/scrape')
 def scrape():
@@ -320,6 +330,65 @@ def core_set_edit(set_name):
         if numeric_string in set_name:
             return set_name.replace(numeric_string, replacement_string)
     return set_name
+
+
+def generate_pack(set_id):
+    pack = []
+    pack_has_foil = False
+    pack_has_mythic_rare = False
+    pack_requires_guildgate = False
+    if set_id in [190, 201]:
+        pack_requires_guildgate = True
+    if randint(1, 67) == 1:
+        pack_has_foil = True
+    if randint(1, 8) == 1:
+        pack_has_mythic_rare = True
+    mythic_rare_count = 0 if not pack_has_mythic_rare else 1
+    rare_count = 1 if not pack_has_mythic_rare else 0
+    uncommon_count = 3 if not pack_has_foil else 2
+    common_count = 10
+    guildgate_count = 0 if not pack_requires_guildgate else 1
+    basic_land_count = 1 if not pack_requires_guildgate else 0
+    # print(mythic_rare_count, rare_count, uncommon_count, common_count, basic_land_count, guildgate_count)
+    mythic_rare = None
+    if mythic_rare_count:
+        mythic_rare = models.Card.query.filter_by(set_id=set_id, card_rarity='M')\
+            .order_by(func.rand()).limit(mythic_rare_count).first()
+    rare = None
+    if rare_count:
+        rare = models.Card.query.filter_by(set_id=set_id, card_rarity='R')\
+            .order_by(func.rand()).limit(rare_count).first()
+    uncommons = models.Card.query.filter_by(set_id=set_id, card_rarity='U')\
+        .order_by(func.rand()).limit(uncommon_count).all()
+    commons = models.Card.query.filter_by(set_id=set_id, card_rarity='C')
+    if pack_requires_guildgate:
+        commons = commons.filter(not_(models.Card.card_name.ilike('%{}%'.format('Guildgate'), models.Card.card_type == 'Land')))
+    commons = commons.order_by(func.rand()).limit(common_count).all()
+    land = models.Card.query.filter_by(set_id=set_id, card_rarity='L')\
+        .order_by(func.rand()).limit(basic_land_count).first()
+    guildgate = models.Card.query.filter_by(set_id=set_id, card_rarity='C', card_type="Land")\
+        .filter(models.Card.card_name.ilike('%{}%'.format('Guildgate')))\
+        .order_by(func.rand()).limit(guildgate_count).first()
+    foil_card = None
+    if pack_has_foil:
+        foil_card = models.Card.query.filter_by(set_id=set_id)\
+            .filter(models.Card.card_rarity != 'L')\
+            .order_by(func.rand()).limit(1).first()
+    if mythic_rare:
+        pack.append(mythic_rare)
+    if rare:
+        pack.append(rare)
+    for uncommon in uncommons:
+        pack.append(uncommon)
+    for common in commons:
+        pack.append(common)
+    if land:
+        pack.append(land)
+    if guildgate:
+        pack.append(guildgate)
+    if foil_card:
+        pack.append(foil_card)
+    return pack
 
 
 if __name__ == '__main__':
