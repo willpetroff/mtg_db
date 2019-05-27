@@ -94,7 +94,13 @@
         {% for my_card in my_cards %}
         <div class="row card-row">
             <div class="col-sm-6 col-md-3">
-                {{my_card.card.card_name}}&nbsp;<i class="fas fa-edit float-right edit-card-details" data-owned-card-id="{{my_card.owned_card_id}}"></i>
+                {% set card_uri = my_card.card.get_card_img(size='small') %}
+                {% if card_uri %}
+                <img src="{{card_uri}}" alt="" class="img-fluid card-item" title="{{my_card.card.card_name}}">
+                {% else %}
+                {{my_card.card.card_name}}
+                {% endif %}
+                &nbsp;<i class="fas fa-edit float-right edit-card-details" data-owned-card-id="{{my_card.owned_card_id}}"></i>
             </div>
             <div class="col-sm-3 col-md-1">
                 {{my_card.card.card_rarity}}
@@ -109,7 +115,7 @@
                 {{my_card.card.card_display_cost}}
             </div>
             <div class="col-sm-6 col-md-1">
-                <span class="total-card-cost" data-card-count="{{my_card.card_count}}" data-single-card-cost="{{my_card.card.get_current_value()}}">{{my_card.card.get_current_value()}}</span>
+                <span class="total-card-cost" data-card-count="{{my_card.card_count}}" data-single-card-cost="{{my_card.card.get_current_value()}}">{{my_card.price_total}}</span>
             </div>
             <div class="col-sm-12 col-md-1">
                 <i class="fas fa-plus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="1"></i>

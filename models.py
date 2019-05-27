@@ -52,7 +52,7 @@ class BaseModel:
         return False
 
     def serialize(self, *excluded_attributes, exclude_password=True):
-        attribute_dict = {attr: getattr(self, attr) for attr in self.__dict__.keys() if attr[0] != '_'}
+        attribute_dict = {attr: str(getattr(self, attr)) for attr in self.__dict__.keys() if attr[0] != '_'}
         if exclude_password:
             try:
                 del attribute_dict['password']
@@ -160,7 +160,8 @@ class Card(db.Model, BaseModel):
     card_artist = db.Column(db.String(100))
     has_foil = db.Column(db.Boolean, default=False)
     value_last_updated = db.Column(db.Date, default=date.today)
-    card_img_uri = db.Column(db.String(255))
+    card_img_uri_normal = db.Column(db.String(255))
+    card_img_uri_small = db.Column(db.String(255))
 
     card_set = db.relationship('Set', foreign_keys=[set_id])
     card_values = db.relationship('CardValue')
@@ -198,20 +199,38 @@ class Card(db.Model, BaseModel):
         else:
             return "0.00"
 
-    def get_card_img(self, url=None, scryfall=True):
-        if self.card_img_uri:
-            return self.card_img_uri
+    def get_card_img(self, url=None, scryfall=True, size='normal'):
+        if self.card_img_uri_normal and self.card_img_uri_small:
+            return self.get_correct_img_size(size)
         if not url and scryfall:
             url = "https://api.scryfall.com/cards/multiverse/{}".format(self.wotc_id)
         r = requests.get(url, allow_redirects=False)
         if r.status_code != 200:
             return False
         card = json.loads(r.text)
-        self.card_img_uri = card['image_uris']['normal']
-        err = self.update_object()
-        if err:
-            return card['image_uris']['normal']
-        return self.card_img_uri
+        if 'image_uris' in card.keys():
+            self.card_img_uri_normal = card['image_uris']['normal']
+            self.card_img_uri_small = card['image_uris']['small']
+            err = self.update_object()
+            if err:
+                return card['image_uris']['normal']
+        if 'card_faces' in card.keys():
+            card = card['card_faces'][0]
+            if 'image_uris' in card.keys():
+                self.card_img_uri_normal = card['image_uris']['normal']
+                self.card_img_uri_small = card['image_uris']['small']
+                err = self.update_object()
+                if err:
+                    return card['image_uris']['normal']
+        return self.get_correct_img_size(size)
+
+
+    def get_correct_img_size(self, size):
+        if size == 'normal':
+            return self.card_img_uri_normal
+        elif size == 'small':
+            return self.card_img_uri_small
+        return self.card_img_uri_normal
             
 
 class CardRuling(db.Model, BaseModel):
@@ -273,6 +292,7 @@ class OwnedCard(db.Model, BaseModel):
     card_count = db.Column(db.Integer)
     foil_count = db.Column(db.Integer, default=0)
     in_deck_count = db.Column(db.Integer, default=0)
+    current_total = db.Column(db.Numeric(8, 2), default=0)
 
     card = db.relationship('Card')
     user = db.relationship('User')
@@ -283,8 +303,6 @@ class OwnedCard(db.Model, BaseModel):
 
     @card_value_reg.expression
     def card_value_reg(cls):
-        print(select([Card.value_reg]).where(cls.card_id == Card.card_id).alias('card_value_reg'))
-        print('----------------------------------')
         return select([Card.value_reg]).where(cls.card_id == Card.card_id).alias('card_value_reg')
 
     @hybrid_property
