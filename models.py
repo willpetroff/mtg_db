@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, date
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, case, and_
 
 db = SQLAlchemy()
 
@@ -164,6 +165,22 @@ class Card(db.Model, BaseModel):
     card_set = db.relationship('Set', foreign_keys=[set_id])
     card_values = db.relationship('CardValue')
 
+    @hybrid_property
+    def value_reg(self):
+        return self.card_values[-1].card_value_mid_current
+        
+    @value_reg.expression
+    def value_reg(cls):
+        return select([CardValue.card_value_mid_current]).where(and_(cls.card_id == CardValue.card_id, cls.value_last_updated <= CardValue.created)).alias('value_reg')
+
+    @hybrid_property
+    def value_foil(self):
+        return self.card_values[-1].card_foil_value
+
+    @value_reg.expression
+    def value_foil(cls):
+        return select([CardValue.card_foil_value]).where(and_(cls.card_id == CardValue.card_id, cls.value_last_updated <= CardValue.created)).alias('value_foil')
+
     def get_current_value(self, return_foil=False, cast_as_int=False):
         if not self.card_values:
             if cast_as_int:
@@ -223,10 +240,12 @@ class CardValue(db.Model, BaseModel):
     card_value_id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey("card.card_id", ondelete="CASCADE"))
     created = db.Column(db.DateTime, default=datetime.utcnow)
-    card_value_high_current = db.Column(db.Numeric(8,2))
-    card_value_low_current = db.Column(db.Numeric(8, 2))
-    card_value_mid_current = db.Column(db.Numeric(8, 2))
-    card_foil_value = db.Column(db.Numeric(8, 2))
+    card_value_high_current = db.Column(db.Numeric(8,2), default=0)
+    card_value_low_current = db.Column(db.Numeric(8, 2), default=0)
+    card_value_mid_current = db.Column(db.Numeric(8, 2), default=0)
+    card_foil_value = db.Column(db.Numeric(8, 2), default=0)
+
+    card = db.relationship('Card')
 
 
 class Set(db.Model, BaseModel):
@@ -252,19 +271,43 @@ class OwnedCard(db.Model, BaseModel):
     updated = db.Column(db.DateTime)
     card_id = db.Column(db.Integer, db.ForeignKey("card.card_id", ondelete="CASCADE"))
     card_count = db.Column(db.Integer)
-    foil_count = db.Column(db.Integer)
-    in_deck_count = db.Column(db.Integer)
+    foil_count = db.Column(db.Integer, default=0)
+    in_deck_count = db.Column(db.Integer, default=0)
 
     card = db.relationship('Card')
     user = db.relationship('User')
 
-    # def get_price_total(self):
-    #     non_foil_count = self.card_count
-    #     foil_count = 0
-    #     if self.foil_count:
-    #         non_foil_count = self.card_count - self.foil_count
-    #         foil_count = self.foil_count
-    #     return non_foil_count * self.card.get_current_value(cast_as_int=True) + foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
+    @hybrid_property
+    def card_value_reg(self):
+        return self.card.value_reg
+
+    @card_value_reg.expression
+    def card_value_reg(cls):
+        print(select([Card.value_reg]).where(cls.card_id == Card.card_id).alias('card_value_reg'))
+        print('----------------------------------')
+        return select([Card.value_reg]).where(cls.card_id == Card.card_id).alias('card_value_reg')
+
+    @hybrid_property
+    def card_value_foil(self):
+        return self.card.value_foil
+
+    @card_value_foil.expression
+    def card_value_foil(cls):
+        return select([Card.value_foil]).where(cls.card_id == Card.card_id).alias('card_value_foil')
+
+    @hybrid_property
+    def price_total(self):
+        non_foil_count = self.card_count
+        foil_count = 0
+        if self.foil_count:
+            non_foil_count = self.card_count - self.foil_count
+            foil_count = self.foil_count
+        return non_foil_count * self.card.get_current_value(cast_as_int=True) + \
+            foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
+
+    @price_total.expression
+    def price_total(cls):
+        return ((cls.card_count - cls.foil_count) * cls.card_value_reg) + (cls.foil_count * cls.card_value_foil)
 
 
 class Deck(db.Model, BaseModel):

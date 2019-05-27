@@ -109,7 +109,7 @@
                 {{my_card.card.card_display_cost}}
             </div>
             <div class="col-sm-6 col-md-1">
-                <span class="card-cost" data-card-count="{{my_card.card_count}}">{{my_card.card.get_current_value()}}</span>
+                <span class="total-card-cost" data-card-count="{{my_card.card_count}}" data-single-card-cost="{{my_card.card.get_current_value()}}">{{my_card.card.get_current_value()}}</span>
             </div>
             <div class="col-sm-12 col-md-1">
                 <i class="fas fa-plus-circle update-card-count" data-card-id="{{my_card.owned_card_id}}" data-count="1"></i>
@@ -183,7 +183,7 @@
             success: function(data){
                 if (data.success){
                     var cardInfo = data.card_info;
-                    //console.log(cardInfo);
+                    console.log(cardInfo);
                     for (var item in cardInfo) {
                         $('#owned-card-form [name=' + item + ']').val(cardInfo[item]);
                     }
@@ -197,6 +197,13 @@
                 alert('An error has occurred trying to communicate with the server; please try again. If the error persists, please contact the webmaster.');
             }
         });
+    });
+
+    $('#update-owned-card').click(function(){
+        var $item = $(this);
+        var formData = new FormData();
+        collectInputVals('owned-card-input', formData);
+        submitFormGeneral('', formData, "{{url_for('api_card_count_update')}}");
     });
 </script>
 {% endblock %}

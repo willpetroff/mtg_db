@@ -28,7 +28,7 @@ scraper = MTGDataScraper()
 scryfall = ScryfallAPI()
 
 @app.before_request
-def beofre_request():
+def before_request():
     g.user = models.User.query.filter_by(user_id=1).first()
 
 
@@ -48,7 +48,7 @@ def index():
 @app.route('/<int:user_id>/cards', methods=["GET", "POST"])
 def user_card_list(user_id):
     page = request.args.get('page', 1, type=int)
-    my_cards = models.OwnedCard.query.join(models.Card)
+    my_cards = models.OwnedCard.query.filter_by(user_id=user_id).join(models.Card)
     order_by = request.args.get('order', 'name')
     filter_name = request.args.get('name', '')
     filter_set = ''
@@ -63,6 +63,7 @@ def user_card_list(user_id):
             'count': models.OwnedCard.card_count,
             'set': models.Set.name,
             'value': case([(models.CardValue.card_value_mid_current != 'null', models.CardValue.card_value_mid_current)], else_=models.CardValue.card_foil_value).desc()
+            # 'value': models.OwnedCard.price_total
         }
         if order_by == 'set':
             my_cards = my_cards.join(models.Set)
@@ -237,6 +238,15 @@ def card_list_upload():
     return render_template('file_upload.html')
 
 
+@app.route('/get/collection/total', methods=["GET"])
+def get_collection_total():
+    cards = models.OwnedCard.query.filter_by(user_id=1).all()
+    total = 0
+    for card in cards:
+        total += card.price_total
+    return str(total)
+
+
 """
 API CALLS
 """
@@ -268,8 +278,14 @@ def api_card_collection_add():
 @app.route('/api/card/count/update', methods=["POST"])
 def api_card_count_update():
     if request.form:
+        print(request.form)
         owned_card = models.OwnedCard.query.filter_by(owned_card_id=request.form.get('owned_card_id', None)).first_or_404()
-        owned_card.card_count += request.form.get('card_modifier', 0, type=int)
+        if request.form.get('card_modifier', 0):
+            owned_card.card_count += request.form.get('card_modifier', 0, type=int)
+        if request.form.get('card_count', 0):
+            owned_card.card_count = request.form.get('card_count', 0, type=int)
+        if request.form.get('foil_count', 0):
+            owned_card.foil_count = request.form.get('foil_count', 0, type=int)
         if owned_card.card_count <= 0:
             err = owned_card.delete_object()
             if err:
@@ -278,7 +294,7 @@ def api_card_count_update():
         err = owned_card.update_object()
         if err:
             return jsonify(success=False, err=err)
-        return jsonify(success=True)
+        return jsonify(success=True, reload=True)
     else:
         abort(404)
 
