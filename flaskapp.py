@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import models
 import os
 import sys
@@ -14,6 +15,7 @@ from scryfall_api import ScryfallAPI
 from sqlalchemy import case, func, not_
 from time import sleep
 
+from nltk import sent_tokenize, word_tokenize
 
 app = Flask(__name__)
 app.config.from_pyfile('flaskapp.cfg')
@@ -27,6 +29,7 @@ port = 5000
 scraper = MTGDataScraper()
 scryfall = ScryfallAPI()
 
+
 @app.before_request
 def beofre_request():
     g.user = models.User.query.filter_by(user_id=1).first()
@@ -39,9 +42,13 @@ def index():
     # print(card.card_name)
     # Scryfall test
     card = models.Card.query.first()
-    card = scryfall.get_card_multiverse(card.wotc_id)
-    print(card.prices)
-    print(card.legalities)
+    # card = scryfall.get_card_multiverse(card.wotc_id)
+    # print(card.prices)
+    # print(card.legalities)
+    sentences = sent_tokenize(card.card_oracle_text)
+    words = word_tokenize(card.card_oracle_text)
+    print(sentences)
+    print(words)
     return "INDEX"
 
 
@@ -235,6 +242,20 @@ def card_list_upload():
                         owned_card.in_deck_count = 0
                         owned_card.add_object()
     return render_template('file_upload.html')
+
+
+@app.route('/scryfall/csv/test')
+def scryfall_csv_test():
+    with open('./data_csv/scryfall-default-cards.json', 'r') as json_file:
+        cards = json.loads(json_file.read())
+        for card in cards:
+            multiverse_id = card['multiverse_ids'][0] if card['multiverse_ids'] else None
+            
+            for item, value in card.items():
+                pass
+            break
+    return "SUCCESS"
+
 
 
 """

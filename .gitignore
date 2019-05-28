@@ -4,3 +4,4 @@
 venv/
 flaskapp.cfg
 __pycache__/
+data_csv/
