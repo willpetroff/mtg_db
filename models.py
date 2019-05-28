@@ -4,6 +4,7 @@ import requests
 from datetime import datetime, date
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, case, and_
 
 db = SQLAlchemy()
 
@@ -51,7 +52,7 @@ class BaseModel:
         return False
 
     def serialize(self, *excluded_attributes, exclude_password=True):
-        attribute_dict = {attr: getattr(self, attr) for attr in self.__dict__.keys() if attr[0] != '_'}
+        attribute_dict = {attr: str(getattr(self, attr)) for attr in self.__dict__.keys() if attr[0] != '_'}
         if exclude_password:
             try:
                 del attribute_dict['password']
@@ -159,10 +160,27 @@ class Card(db.Model, BaseModel):
     card_artist = db.Column(db.String(100))
     has_foil = db.Column(db.Boolean, default=False)
     value_last_updated = db.Column(db.Date, default=date.today)
-    card_img_uri = db.Column(db.String(255))
+    card_img_uri_normal = db.Column(db.String(255))
+    card_img_uri_small = db.Column(db.String(255))
 
     card_set = db.relationship('Set', foreign_keys=[set_id])
     card_values = db.relationship('CardValue')
+
+    @hybrid_property
+    def value_reg(self):
+        return self.card_values[-1].card_value_mid_current
+        
+    @value_reg.expression
+    def value_reg(cls):
+        return select([CardValue.card_value_mid_current]).where(and_(cls.card_id == CardValue.card_id, cls.value_last_updated <= CardValue.created)).alias('value_reg')
+
+    @hybrid_property
+    def value_foil(self):
+        return self.card_values[-1].card_foil_value
+
+    @value_reg.expression
+    def value_foil(cls):
+        return select([CardValue.card_foil_value]).where(and_(cls.card_id == CardValue.card_id, cls.value_last_updated <= CardValue.created)).alias('value_foil')
 
     def get_current_value(self, return_foil=False, cast_as_int=False):
         if not self.card_values:
@@ -181,20 +199,38 @@ class Card(db.Model, BaseModel):
         else:
             return "0.00"
 
-    def get_card_img(self, url=None, scryfall=True):
-        if self.card_img_uri:
-            return self.card_img_uri
+    def get_card_img(self, url=None, scryfall=True, size='normal'):
+        if self.card_img_uri_normal and self.card_img_uri_small:
+            return self.get_correct_img_size(size)
         if not url and scryfall:
             url = "https://api.scryfall.com/cards/multiverse/{}".format(self.wotc_id)
         r = requests.get(url, allow_redirects=False)
         if r.status_code != 200:
             return False
         card = json.loads(r.text)
-        self.card_img_uri = card['image_uris']['normal']
-        err = self.update_object()
-        if err:
-            return card['image_uris']['normal']
-        return self.card_img_uri
+        if 'image_uris' in card.keys():
+            self.card_img_uri_normal = card['image_uris']['normal']
+            self.card_img_uri_small = card['image_uris']['small']
+            err = self.update_object()
+            if err:
+                return card['image_uris']['normal']
+        if 'card_faces' in card.keys():
+            card = card['card_faces'][0]
+            if 'image_uris' in card.keys():
+                self.card_img_uri_normal = card['image_uris']['normal']
+                self.card_img_uri_small = card['image_uris']['small']
+                err = self.update_object()
+                if err:
+                    return card['image_uris']['normal']
+        return self.get_correct_img_size(size)
+
+
+    def get_correct_img_size(self, size):
+        if size == 'normal':
+            return self.card_img_uri_normal
+        elif size == 'small':
+            return self.card_img_uri_small
+        return self.card_img_uri_normal
             
 
 class CardRuling(db.Model, BaseModel):
@@ -223,10 +259,12 @@ class CardValue(db.Model, BaseModel):
     card_value_id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey("card.card_id", ondelete="CASCADE"))
     created = db.Column(db.DateTime, default=datetime.utcnow)
-    card_value_high_current = db.Column(db.Numeric(8,2))
-    card_value_low_current = db.Column(db.Numeric(8, 2))
-    card_value_mid_current = db.Column(db.Numeric(8, 2))
-    card_foil_value = db.Column(db.Numeric(8, 2))
+    card_value_high_current = db.Column(db.Numeric(8,2), default=0)
+    card_value_low_current = db.Column(db.Numeric(8, 2), default=0)
+    card_value_mid_current = db.Column(db.Numeric(8, 2), default=0)
+    card_foil_value = db.Column(db.Numeric(8, 2), default=0)
+
+    card = db.relationship('Card')
 
 
 class Set(db.Model, BaseModel):
@@ -252,19 +290,42 @@ class OwnedCard(db.Model, BaseModel):
     updated = db.Column(db.DateTime)
     card_id = db.Column(db.Integer, db.ForeignKey("card.card_id", ondelete="CASCADE"))
     card_count = db.Column(db.Integer)
-    foil_count = db.Column(db.Integer)
-    in_deck_count = db.Column(db.Integer)
+    foil_count = db.Column(db.Integer, default=0)
+    in_deck_count = db.Column(db.Integer, default=0)
+    current_total = db.Column(db.Numeric(8, 2), default=0)
 
     card = db.relationship('Card')
     user = db.relationship('User')
 
-    # def get_price_total(self):
-    #     non_foil_count = self.card_count
-    #     foil_count = 0
-    #     if self.foil_count:
-    #         non_foil_count = self.card_count - self.foil_count
-    #         foil_count = self.foil_count
-    #     return non_foil_count * self.card.get_current_value(cast_as_int=True) + foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
+    @hybrid_property
+    def card_value_reg(self):
+        return self.card.value_reg
+
+    @card_value_reg.expression
+    def card_value_reg(cls):
+        return select([Card.value_reg]).where(cls.card_id == Card.card_id).alias('card_value_reg')
+
+    @hybrid_property
+    def card_value_foil(self):
+        return self.card.value_foil
+
+    @card_value_foil.expression
+    def card_value_foil(cls):
+        return select([Card.value_foil]).where(cls.card_id == Card.card_id).alias('card_value_foil')
+
+    @hybrid_property
+    def price_total(self):
+        non_foil_count = self.card_count
+        foil_count = 0
+        if self.foil_count:
+            non_foil_count = self.card_count - self.foil_count
+            foil_count = self.foil_count
+        return non_foil_count * self.card.get_current_value(cast_as_int=True) + \
+            foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
+
+    @price_total.expression
+    def price_total(cls):
+        return ((cls.card_count - cls.foil_count) * cls.card_value_reg) + (cls.foil_count * cls.card_value_foil)
 
 
 class Deck(db.Model, BaseModel):
