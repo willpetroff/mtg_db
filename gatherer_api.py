@@ -25,7 +25,7 @@ class MTGDataScraper(object):
             prefix_modifier_list = ['ctl03_', 'ctl04_']
         if not multiverse_id:
             multiverse_id = self.multiverse_id
-        target = "http://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid={}".format(multiverse_id)
+        target = "https://gatherer.wizards.com/Pages/Card/Details.aspx?multiverseid={}".format(multiverse_id)
         try:
             data = self._scrape(target=target)
         except (requests.HTTPError, requests.ConnectTimeout):
@@ -50,7 +50,7 @@ class MTGDataScraper(object):
     def get_card_set_info_gatherer(self, multiverse_id=None):
         if not multiverse_id:
             multiverse_id = self.multiverse_id
-        target = "http://gatherer.wizards.com/Pages/Card/Printings.aspx?multiverseid={}".format(multiverse_id)
+        target = "https://gatherer.wizards.com/Pages/Card/Printings.aspx?multiverseid={}".format(multiverse_id)
 
         data = self._scrape(target=target)
         parsed_page = BeautifulSoup(data, 'html.parser')
@@ -164,6 +164,7 @@ class MTGDataScraper(object):
             raise requests.ConnectTimeout
         if r.status_code != 200:
             # print(r.url)
+            # print(r.status_code)
             raise requests.HTTPError
         # print(r.text)
         return r.text

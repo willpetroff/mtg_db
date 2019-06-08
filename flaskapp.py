@@ -58,11 +58,15 @@ def user_card_list(user_id):
     my_cards = models.OwnedCard.query.filter_by(user_id=user_id).join(models.Card)
     order_by = request.args.get('order', 'name')
     filter_name = request.args.get('name', '')
-    filter_set = ''
+    filter_set = request.args.get('set', 0, type=int)
     if request.form:
         filter_name = request.form.get('name', '')
+        filter_set = request.form.get('set', 0, type=int)
     if filter_name:
         my_cards = my_cards.filter(models.Card.card_name.ilike('%{}%'.format(filter_name)))
+    if filter_set:
+        print(filter_set)
+        my_cards = my_cards.filter(models.Card.set_id == filter_set)
     if order_by:
         order_by_dict = {
             'name': models.Card.card_name,
@@ -245,14 +249,31 @@ def card_list_upload():
 
 @app.route('/scryfall/csv/test')
 def scryfall_csv_test():
-    with open('./data_csv/scryfall-default-cards.json', 'r') as json_file:
+    count = 1
+    with open('./data_csv/scryfall-default-cards.json', 'r', encoding='UTF-8') as json_file:
         cards = json.loads(json_file.read())
         for card in cards:
+            print(count)
+            count += 1
             multiverse_id = card['multiverse_ids'][0] if card['multiverse_ids'] else None
-            
-            for item, value in card.items():
-                pass
-            break
+            card_name = card['name']
+            card_set = card['set_name']
+            if multiverse_id:
+                card = models.Card.query.filter_by(wotc_id=multiverse_id).first()
+                if not card:
+                    wotc_set = models.Set.query.filter_by(name=card_set).first()
+                    if wotc_set:
+                        card = models.Card.query.filter_by(card_name=card_name, set_id=wotc_set.set_id).first()
+                        if card:
+                            print(card_name, card_set)
+                            # card.wotc_id = multiverse_id
+                            # err = card.update_object()
+                            # if err:
+                            #     print(err)
+            # if not card and multiverse_id:
+            #     card = models.Card()
+            #     card.wotc_id = multiverse_id
+            #     card.card_name = card_name
     return "SUCCESS"
 
 
@@ -290,6 +311,10 @@ def api_card_collection_add():
         new_card.card_count = request.form.get('card_count')
         new_card.user_id = g.user.user_id
         err = new_card.add_object()
+        if err:
+            return jsonify(success=False, err=err)
+        new_card.current_total = new_card.price_total
+        err = new_card.update_object()
         if err:
             return jsonify(success=False, err=err)
         return jsonify(success=True, reload=True)
