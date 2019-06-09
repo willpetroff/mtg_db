@@ -127,7 +127,7 @@ def scrape():
 def update_prices_all():
     @after_this_request
     def worker_task(resp):
-        cards = models.Card.query.filter(models.Card.created > datetime.utcnow() - timedelta(days=4)).all()
+        cards = models.Card.query.all()
         print(cards)
         for card in cards:
             attempts = 0
@@ -158,6 +158,7 @@ def update_prices_all():
             if err:
                 print("Error: {}".format(err))
             card.value_last_updated = date.today()
+            card.current_total = card.price_total
             err = card.update_object()
             if err:
                 print("Error: {}".format(err))
