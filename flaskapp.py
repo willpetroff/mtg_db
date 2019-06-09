@@ -127,7 +127,8 @@ def scrape():
 def update_prices_all():
     @after_this_request
     def worker_task(resp):
-        cards = models.Card.query.all()
+        cards = models.Card.query.filter(models.Card.created > datetime.utcnow() - timedelta(days=4)).all()
+        print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
