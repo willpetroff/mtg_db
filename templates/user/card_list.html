@@ -54,12 +54,13 @@
                         <div class="col-sm-3">
                             <div class="form-group">
                                 <label for="filter-set">Set:</label>
-                                <select name="set" class="form-control">
+                                <!-- <input type="text" class="form-control" name="set" value="{{filter_dict['set'] if filter_dict['set']}}"> -->
+                                <select class="form-control" name="set" id="">
                                     <option value="">-- Select Set --</option>
                                     {% for set in sets %}
-                                    <option value="{{set.set_id}}" {{'selected' if set.set_id | string == filter_dict['set']}}>{{set.name}}</option>
+                                    <option value="{{set.set_id}}" {{'selected' if filter_dict['set'] == set.set_id}}>{{set.name}}</option>
                                     {% endfor %}
-                                </select>
+                            </select>
                             </div>
                         </div>
                         <div class="col-sm-3"></div>
