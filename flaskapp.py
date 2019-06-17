@@ -58,11 +58,14 @@ def user_card_list(user_id):
     my_cards = models.OwnedCard.query.filter_by(user_id=user_id).join(models.Card)
     order_by = request.args.get('order', 'name')
     filter_name = request.args.get('name', '')
-    filter_set = ''
+    filter_set = request.args.get('set', '')
     if request.form:
         filter_name = request.form.get('name', '')
+        filter_set = request.form.get('set', '')
     if filter_name:
         my_cards = my_cards.filter(models.Card.card_name.ilike('%{}%'.format(filter_name)))
+    if filter_set:
+        my_cards = my_cards.filter(models.Card.set_id == filter_set)
     if order_by:
         order_by_dict = {
             'name': models.Card.card_name,
@@ -77,7 +80,7 @@ def user_card_list(user_id):
         if order_by == 'value':
             my_cards = my_cards.outerjoin(models.CardValue).filter(models.CardValue.created >= models.Card.value_last_updated)
         my_cards = my_cards.order_by(order_by_dict[order_by])
-    my_cards, pagination = paginate(my_cards, page, per_page=100)
+    my_cards, pagination = paginate(my_cards, page, per_page=50)
     filter_dict = {
         'name': filter_name,
         'rarity': '',
@@ -292,6 +295,10 @@ def api_card_collection_add():
         err = new_card.add_object()
         if err:
             return jsonify(success=False, err=err)
+        new_card.current_total = new_card.price_total
+        err = new_card.update_object()
+        if err:
+            return jsonify(success=False, err=err)
         return jsonify(success=True, reload=True)
     else:
         return jsonify(success=False, err="The server did not receive any data.")
@@ -300,7 +307,7 @@ def api_card_collection_add():
 @app.route('/api/card/count/update', methods=["POST"])
 def api_card_count_update():
     if request.form:
-        print(request.form)
+        # print(request.form)
         owned_card = models.OwnedCard.query.filter_by(owned_card_id=request.form.get('owned_card_id', None)).first_or_404()
         if request.form.get('card_modifier', 0):
             owned_card.card_count += request.form.get('card_modifier', 0, type=int)
