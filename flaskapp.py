@@ -128,7 +128,7 @@ def update_prices_all():
     @after_this_request
     def worker_task(resp):
         cards = models.Card.query.all()
-        print(cards)
+        # print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
@@ -158,10 +158,15 @@ def update_prices_all():
             if err:
                 print("Error: {}".format(err))
             card.value_last_updated = date.today()
-            card.current_total = card.price_total
             err = card.update_object()
             if err:
                 print("Error: {}".format(err))
+            owned_card = models.OwnedCard.query.filter_by(user_id=1, card_id=card.card_id).first()
+            if owned_card:
+                owned_card.current_total = owned_card.price_total
+                err = owned_card.update_object()
+                if err:
+                    print("Error: {}".format(err))
             sleep(.5)
             print("Price is:", new_value.card_value_mid_current, card.wotc_id, card.card_set.name, card.card_name)
         return resp
