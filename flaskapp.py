@@ -127,8 +127,12 @@ def scrape():
 def update_prices_all():
     @after_this_request
     def worker_task(resp):
-        cards = models.Card.query.all()
-        # print(cards)
+        mid = request.args.get('mid', 0, type=int)
+        cards = models.Card.query
+        if mid:
+            cards = cards.filter(models.Card.wotc_id >= mid)
+        cards = cards.all()
+        print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
@@ -362,6 +366,15 @@ def api_card_get():
     else:
         return jsonify(success=False, err="The server failed to receive any data.")
 
+
+@app.route('/api/card/image/refresh', methods=['POST'])
+def api_image_refresh():
+    if request.form:
+        card = models.Card.query.filter_by(card_id=request.form.get('card_id', None)).first_or_404()
+        card.get_card_img(refresh=True)
+        return jsonify(success=True, reload=True)
+    else:
+        return jsonify(success=False, err="The server failed to receive any data.")
 
 """
 SETUP AND CORE FUNCTIONS

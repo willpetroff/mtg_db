@@ -199,11 +199,9 @@ class Card(db.Model, BaseModel):
         else:
             return "0.00"
 
-    def get_card_img(self, url=None, scryfall=True, size='normal'):
-        if self.card_img_uri_normal and self.card_img_uri_small:
-            img_resp_test = requests.get(self.get_correct_img_size(size))
-            if img_resp_test.status_code == 200:
-                return self.get_correct_img_size(size)
+    def get_card_img(self, url=None, scryfall=True, size='normal', refresh=False):
+        if self.card_img_uri_normal and self.card_img_uri_small and not refresh:
+            return self.get_correct_img_size(size)
         if not url and scryfall:
             url = "https://api.scryfall.com/cards/multiverse/{}".format(self.wotc_id)
         r = requests.get(url, allow_redirects=False)
