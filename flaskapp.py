@@ -132,7 +132,7 @@ def update_prices_all():
         if mid:
             cards = cards.filter(models.Card.wotc_id >= mid)
         cards = cards.all()
-        print(cards)
+        # print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
