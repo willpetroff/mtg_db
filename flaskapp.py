@@ -301,6 +301,13 @@ def get_collection_total():
     return str(total)
 
 
+@app.route('/get/cards/artist/<string:artist_name>')
+def get_cards_by_artist(artist_name):
+    # print(artist_name)
+    cards = models.Card.query.filter_by(card_artist=artist_name).join(models.OwnedCard).all()
+    owned_cards = [{'card': card.card_name, 'set': card.card_set.name} for card in cards]
+    return jsonify(cards=owned_cards)
+
 """
 API CALLS
 """
