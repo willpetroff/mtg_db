@@ -30,6 +30,11 @@
         padding-top: 1rem;
         padding-bottom: 1rem;
     }
+
+    .refresh-image:hover {
+        color: steelblue;
+        cursor: pointer;
+    }
 </style>
 {% endblock %}
 
@@ -107,6 +112,8 @@
                 {{my_card.card.card_name}}
                 {% endif %}
                 &nbsp;<i class="fas fa-edit float-right edit-card-details" data-owned-card-id="{{my_card.owned_card_id}}"></i>
+                <br>
+                <i class="fas fa-sync-alt float-right refresh-image" data-card-id="{{my_card.card_id}}"></i>
             </div>
             <div class="col-sm-3 col-md-1">
                 {{my_card.card.card_rarity}}
@@ -216,6 +223,13 @@
         var formData = new FormData();
         collectInputVals('owned-card-input', formData);
         submitFormGeneral('', formData, "{{url_for('api_card_count_update')}}");
+    });
+
+    $('.refresh-image').click(function(){
+        var $item = $(this);
+        var formData = new FormData();
+        formData.append('card_id', $item.data('card-id'));
+        submitFormGeneral($item, formData, "{{url_for('api_image_refresh')}}");
     });
 </script>
 {% endblock %}
