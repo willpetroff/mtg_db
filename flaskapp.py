@@ -288,7 +288,7 @@ def scryfall_csv_test():
     return "SUCCESS"
 
 
-@app.route('/get/collection/total', methods=["GET"])
+@app.route('/get/collection/total')
 def get_collection_total():
     cards = models.OwnedCard.query.filter_by(user_id=1).all()
     total = 0
@@ -300,6 +300,38 @@ def get_collection_total():
             print(err)
     return str(total)
 
+
+@app.route('/get/list/standard')
+def get_collection_standard_legal():
+    _STANDARD_LIST = (209, 207, 201, 190, 188, 183, 180, 174)
+    _RARITY_LIST = ('R', 'M')
+    cards = models.OwnedCard.query.filter_by(user_id=1)\
+        .join(models.Card)\
+        .filter(
+            models.Card.set_id.in_(_STANDARD_LIST),
+            models.Card.card_rarity.in_(_RARITY_LIST)
+        ).order_by(models.Card.card_name).all()
+    for owned_card in cards:
+        print(f'{owned_card.card.card_name}|{owned_card.card_count}|{owned_card.card.card_set.name}')
+    return "SUCCESS"
+
+
+@app.route('/get/uc/value')
+def get_uc_value():
+    _RARITY_LIST = ('C', 'U')
+    cards = models.OwnedCard.query.filter_by(user_id=1)\
+        .join(models.Card)\
+        .filter(
+            models.Card.card_rarity.in_(_RARITY_LIST),
+            models.OwnedCard.current_total >= 1
+        ).order_by(models.Card.card_name).all()
+    final_list = []
+    for card in cards:
+        if card.current_total / card.card_count > 1:
+            final_list.append((card.card.card_name, card.card.card_set.name, card.card.card_rarity, float(card.current_total/card.card_count)))
+    final_list = sorted(final_list, key=lambda x: x[-1])
+    return jsonify(cards=final_list)
+    
 
 """
 API CALLS
@@ -375,6 +407,7 @@ def api_image_refresh():
         return jsonify(success=True, reload=True)
     else:
         return jsonify(success=False, err="The server failed to receive any data.")
+
 
 """
 SETUP AND CORE FUNCTIONS
