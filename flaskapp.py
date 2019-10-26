@@ -132,7 +132,7 @@ def update_prices_all():
         if mid:
             cards = cards.filter(models.Card.wotc_id >= mid)
         cards = cards.all()
-        print(cards)
+        # print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
@@ -332,6 +332,12 @@ def get_uc_value():
     final_list = sorted(final_list, key=lambda x: x[-1])
     return jsonify(cards=final_list)
     
+@app.route('/get/cards/artist/<string:artist_name>')
+def get_cards_by_artist(artist_name):
+    # print(artist_name)
+    cards = models.Card.query.filter_by(card_artist=artist_name).join(models.OwnedCard).all()
+    owned_cards = [{'card': card.card_name, 'set': card.card_set.name} for card in cards]
+    return jsonify(cards=owned_cards)
 
 """
 API CALLS
