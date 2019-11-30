@@ -20,10 +20,7 @@ from nltk import sent_tokenize, word_tokenize
 app = Flask(__name__)
 app.config.from_pyfile('flaskapp.cfg')
 app.config['DEBUG'] = True
-# test_db_uri = "mysql+pymysql://local_user:vDTs1s8KLbMnigoK@192.168.1.3:3306/mtg_db"
-# test_db_uri = "mysql+pymysql://mtg_user:u24JNFAVvQOUds7T@wpserver1.myqnapcloud.com:3306/mtg_db"
-# app.config['SQLALCHEMY_DATABASE_URI'] = test_db_uri
-print(app.config['SQLALCHEMY_DATABASE_URI'])
+# print(app.config['SQLALCHEMY_DATABASE_URI'])
 models.db.init_app(app)
 port = 5000
 scraper = MTGDataScraper()
@@ -65,7 +62,7 @@ def user_card_list(user_id):
     if filter_name:
         my_cards = my_cards.filter(models.Card.card_name.ilike('%{}%'.format(filter_name)))
     if filter_set:
-        print(filter_set)
+        # print(filter_set)
         my_cards = my_cards.filter(models.Card.set_id == filter_set)
     if order_by:
         order_by_dict = {
@@ -82,6 +79,7 @@ def user_card_list(user_id):
             my_cards = my_cards.outerjoin(models.CardValue).filter(models.CardValue.created >= models.Card.value_last_updated)
         my_cards = my_cards.order_by(order_by_dict[order_by])
     my_cards, pagination = paginate(my_cards, page, per_page=50)
+    # print(my_cards)
     filter_dict = {
         'name': filter_name,
         'rarity': '',
@@ -132,7 +130,6 @@ def update_prices_all():
         if mid:
             cards = cards.filter(models.Card.wotc_id >= mid)
         cards = cards.all()
-        # print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
@@ -213,10 +210,51 @@ def error_cleanup():
     return "SUCCESS"
 
 
-@app.route('/upload', methods=["GET", "POST"])
-def card_list_upload():
+@app.route('/upload/mtg/default', methods=["GET", "POST"])
+def card_upload_mtg_default():
     if request.files:
-        print(request.files)
+        download_file = request.files.get('card_list')
+        file_item = io.StringIO(download_file.stream.read().decode("UTF8", 'ignore'), newline=None)
+        for card in file_item.getvalue().split('\n'):
+            card_name = card.split(' ', 1)[-1]
+            if card_name in ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']:
+                continue
+            card_count = card.split(' ', 1)[0]
+            card_set = 'Commander 2019'
+            card_set = models.Set.query.filter(models.Set.name.ilike('%{}%'.format(card_set))).first()
+            if not card_set:
+                str_err = "Set {} not found. Card {} not added.".format(card_set, card_name)
+                err = models.Errors()
+                err.add_error(error=str_err, path=request.full_path, action="Adding Card Record")
+            else:
+                if '//' in card_name:
+                    card_names = card_name.split('//')
+                else:
+                    card_names = [card_name]
+                for card_name in card_names:
+                    card_name = card_name.strip()
+                    card = models.Card.query.filter_by(card_name=card_name, set_id=card_set.set_id).first()
+                    if not card:
+                        str_err = "Card {} not found. Card {} not added.".format(card_name, card_name)
+                        err = models.Errors()
+                        err.add_error(error=str_err, path=request.full_path, action="Adding Card Record")
+                    else:
+                        owned_card = models.OwnedCard.query.filter_by(user_id=1, card_id=card.card_id).first()
+                        if owned_card:
+                            print('Card already exists')
+                            continue
+                        owned_card = models.OwnedCard()
+                        owned_card.card_id = card.card_id
+                        owned_card.card_count = card_count
+                        owned_card.user_id = 1
+                        owned_card.in_deck_count = 0
+                        owned_card.add_object()
+    return render_template('file_upload.html')
+
+
+@app.route('/upload/tcg', methods=["GET", "POST"])
+def card_list_upload_tcg():
+    if request.files:
         download_file = request.files.get('card_list')
         csv_file = io.StringIO(download_file.stream.read().decode("UTF8", 'ignore'), newline=None)
         csv_reader = csv.reader(csv_file)
@@ -253,6 +291,7 @@ def card_list_upload():
                         owned_card = models.OwnedCard()
                         owned_card.card_id = card.card_id
                         owned_card.card_count = card_count
+                        owned_card.user_id = 1
                         owned_card.in_deck_count = 0
                         owned_card.add_object()
     return render_template('file_upload.html')
