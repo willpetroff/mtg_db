@@ -132,7 +132,6 @@ def update_prices_all():
         if mid:
             cards = cards.filter(models.Card.wotc_id >= mid)
         cards = cards.all()
-        # print(cards)
         for card in cards:
             attempts = 0
             if card.value_last_updated == '0000-00-00' or not card.value_last_updated:
@@ -142,7 +141,7 @@ def update_prices_all():
             print("Getting price for:", card.wotc_id, card.card_set.name, card.card_name)
             scryfall_card = scryfall.get_card_multiverse(card.wotc_id)
             while not scryfall_card and attempts < 3:
-                sleep(1)
+                sleep(.5)
                 scryfall_card = scryfall.get_card_multiverse(card.wotc_id)
                 attempts += 1
             if not scryfall_card:
@@ -308,6 +307,22 @@ def get_cards_by_artist(artist_name):
     owned_cards = [{'card': card.card_name, 'set': card.card_set.name} for card in cards]
     return jsonify(cards=owned_cards)
 
+
+@app.route('/get/vintagecube/cards')
+def get_vintage_cube_cards():
+    owned_cards = []
+    cards_total = 0
+    with open('mtgo_vintage_cube_summer_2019.csv', 'r') as csv_file:
+        csv_reader = csv.reader(csv_file)
+        for line in csv_reader:
+            card_name = line[0]
+            owned_card = models.OwnedCard.query.join(models.Card).filter(models.Card.card_name == card_name).first()
+            if owned_card:
+                owned_cards.append(card_name)
+            cards_total += 1
+    return jsonify(owned_count=len(owned_cards), owned_percentage=len(owned_cards)/cards_total, owned_cards=owned_cards)
+
+
 """
 API CALLS
 """
@@ -382,6 +397,7 @@ def api_image_refresh():
         return jsonify(success=True, reload=True)
     else:
         return jsonify(success=False, err="The server failed to receive any data.")
+
 
 """
 SETUP AND CORE FUNCTIONS
