@@ -92,7 +92,7 @@ def user_card_list(user_id):
 @app.route("/<int:set_id>/pack")
 def display_card_pack(set_id):
     pack = generate_pack(set_id)
-    a = 1
+    print(pack)
     return render_template('card_pack.html', pack=pack)
 
 
