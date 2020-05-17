@@ -184,20 +184,18 @@ class Card(db.Model, BaseModel):
 
     def get_current_value(self, return_foil=False, cast_as_int=False):
         if not self.card_values:
-            if cast_as_int:
-                return 0
-            return "0.00"
+            return return_non_price(cast_as_int)
         if return_foil:
             if self.card_values[-1].card_foil_value:
                 return self.card_values[-1].card_foil_value
             else:
-                return 0
+                return return_non_price(cast_as_int)
         if self.card_values[-1].card_value_mid_current:
             return self.card_values[-1].card_value_mid_current
         elif self.card_values[-1].card_foil_value:
             return self.card_values[-1].card_foil_value
         else:
-            return "0.00"
+            return return_non_price(cast_as_int)
 
     def get_card_img(self, url=None, scryfall=True, size='normal', refresh=False):
         if self.card_img_uri_normal and self.card_img_uri_small and not refresh:
@@ -321,7 +319,7 @@ class OwnedCard(db.Model, BaseModel):
             non_foil_count = self.card_count - self.foil_count
             foil_count = self.foil_count
         return non_foil_count * self.card.get_current_value(cast_as_int=True) + \
-            foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
+                foil_count * self.card.get_current_value(return_foil=True, cast_as_int=True)
 
     @price_total.expression
     def price_total(cls):
@@ -451,10 +449,16 @@ class User(db.Model, BaseModel):
     owned_cards = db.relationship('OwnedCard')
 
     def get_collection_total(self):
-        print('test')
+        # print('test')
         total = 0
         for owned_card in self.owned_cards:
             card_value = owned_card.card.get_current_value(cast_as_int=True)
             if card_value:
                 total += owned_card.card.get_current_value(cast_as_int=True) * owned_card.card_count
         return total
+
+
+def return_non_price(cast_as_int):
+    if cast_as_int:
+        return 0
+    return '0.00'
