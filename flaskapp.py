@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from flask import Flask, render_template, request, jsonify, abort, after_this_request, g, send_from_directory
 from gatherer_api import MTGDataScraper
-from locallibrary import paginate, pretty_exception
+from locallibrary import paginate, pretty_exception, DotDict
 from random import randint, uniform
 from scryfall_api import ScryfallAPI
 from sqlalchemy import case, func, not_
@@ -17,14 +17,15 @@ from time import sleep
 
 from nltk import sent_tokenize, word_tokenize
 
+scraper = MTGDataScraper()
+scryfall = ScryfallAPI()
+
 app = Flask(__name__)
 app.config.from_pyfile('flaskapp.cfg')
 app.config['DEBUG'] = True
 # print(app.config['SQLALCHEMY_DATABASE_URI'])
 models.db.init_app(app)
 port = 5000
-scraper = MTGDataScraper()
-scryfall = ScryfallAPI()
 
 
 @app.before_request
@@ -38,14 +39,14 @@ def index():
     # card = models.Card.query.first()
     # print(card.card_name)
     # Scryfall test
-    card = models.Card.query.first()
+    # card = models.Card.query.first()
     # card = scryfall.get_card_multiverse(card.wotc_id)
     # print(card.prices)
     # print(card.legalities)
-    sentences = sent_tokenize(card.card_oracle_text)
-    words = word_tokenize(card.card_oracle_text)
-    print(sentences)
-    print(words)
+    # sentences = sent_tokenize(card.card_oracle_text)
+    # words = word_tokenize(card.card_oracle_text)
+    # print(sentences)
+    # print(words)
     return "INDEX"
 
 
@@ -393,6 +394,34 @@ def get_vintage_cube_cards():
             cards_total += 1
     return jsonify(owned_count=len(owned_cards), owned_percentage=len(owned_cards)/cards_total, owned_cards=owned_cards)
 
+
+@app.route('/get/card/scryfall')
+def get_scryfall_card():
+    with open('default-cards.json', encoding='utf-8') as json_file:
+        cards = json.load(json_file)
+        return jsonify(card=cards[0])
+
+
+@app.route('/scryfall/update')
+def update_cards_from_scryfall():
+    file_path = 'default-cards.json'
+    if not os.path.isfile(file_path):
+        abort(404)
+    with open(file_path, encoding='utf-8') as json_file:
+        cards = json.load(json_file)
+        for card in cards:
+            card = DotDict(**card)
+            print(card.multiverse_ids)
+            if len(card.multiverse_ids) > 1:
+                return card.name
+            multiverse_id = card.multiverse_ids[0] if card.multiverse_ids else None
+            db_record = models.Card.query.filter_by(wotc_id=multiverse_id).first()
+            if not db_record:
+                db_record = models.Card()
+            print(db_record)
+            break
+    return "SUCCESS"
+            
 
 """
 API CALLS

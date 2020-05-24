@@ -139,6 +139,9 @@ class Card(db.Model, BaseModel):
     created = db.Column(db.DateTime, default=datetime.utcnow)
     updated = db.Column(db.DateTime)
     wotc_id = db.Column(db.Integer)  # multiverse_id
+    tcg_player_id = db.Column(db.Integer)
+    scryfall_id = db.Column(db.String(50))
+    oracle_id = db.Column(db.String(50))
     card_draft_rating = db.Column(db.Numeric(6,3), default=0)
     card_name = db.Column(db.String(255))
     set_id = db.Column(db.Integer, db.ForeignKey('wotc_set.set_id', ondelete="CASCADE"))
@@ -159,6 +162,9 @@ class Card(db.Model, BaseModel):
     card_flavor_text = db.Column(db.Text)
     card_artist = db.Column(db.String(100))
     has_foil = db.Column(db.Boolean, default=False)
+    is_promo = db.Column(db.Boolean, default=False)
+    is_reprint = db.Column(db.Boolean, default=False)
+    is_reserved = db.Column(db.Boolean, default=False)
     value_last_updated = db.Column(db.Date, default=date.today)
     card_img_uri_normal = db.Column(db.String(255))
     card_img_uri_small = db.Column(db.String(255))
@@ -222,14 +228,15 @@ class Card(db.Model, BaseModel):
                     return card['image_uris']['normal']
         return self.get_correct_img_size(size)
 
-
     def get_correct_img_size(self, size):
         if size == 'normal':
             return self.card_img_uri_normal
         elif size == 'small':
             return self.card_img_uri_small
         return self.card_img_uri_normal
-            
+
+    def update_from_scryfall(self, scryfall_card_obj):
+        return False            
 
 class CardRuling(db.Model, BaseModel):
     __tablename__ = 'card_oracle_ruling'
@@ -263,6 +270,14 @@ class CardValue(db.Model, BaseModel):
     card_foil_value = db.Column(db.Numeric(8, 2), default=0)
 
     card = db.relationship('Card')
+
+
+class CardEDHRank(db.Model, BaseModel):
+    __tablename__ = 'card_edh_rank'
+    edh_rank_id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey("card.card_id", ondelete="CASCADE"))
+    created = db.Column(db.DateTime, default=datetime.utcnow)
+    edh_rank = db.Column(db.Integer)
 
 
 class Set(db.Model, BaseModel):

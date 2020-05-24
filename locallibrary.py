@@ -8,6 +8,21 @@ from math import ceil
 from sqlalchemy.sql import func
 
 
+class DotDict(dict):
+    def __init__(self, **attrs):
+        self.__dict__.update(attrs)
+
+    def __getattr__(self, name):
+        if name in self:
+            return self[name]
+        return super().__getattr__(name)
+
+    def __setattr__(self, name, value):
+        if name in self.keys():
+            self[name] = value
+        return super().__setattr__(name, value)
+
+
 def paginate(query, current_page, per_page=30, stretch=2):
     record_count = row_count(query)
     max_page = ceil(record_count / per_page)
