@@ -409,17 +409,46 @@ def update_cards_from_scryfall():
         abort(404)
     with open(file_path, encoding='utf-8') as json_file:
         cards = json.load(json_file)
+        if request.args.get('updatesets'):
+            sets = {(card['set'], card['set_name'], card['released_at']) for card in cards}
+            for set_item in sets:
+                wotc_set = models.Set.query.filter_by(name=set_item[1]).first()
+                if not wotc_set:
+                    print('NEW SET:', set_item)
+                    wotc_set = models.Set()
+                wotc_set.name = set_item[1]
+                wotc_set.wotc_code = set_item[0]
+                wotc_set.release_date = set_item[2]
+                err = None
+                if not wotc_set.set_id:
+                    print('ADDING SET')
+                    err = wotc_set.add_object()
+                else:
+                    err = wotc_set.update_object()
+                if err:
+                    return err
         for card in cards:
             card = DotDict(**card)
-            print(card.multiverse_ids)
-            if len(card.multiverse_ids) > 1:
-                return card.name
+            no_mid_card = []
+            if len(card.multiverse_ids) > 1 or len(card.multiverse_ids) == 0:
+                no_mid_card.append((card.name, card.id, card.scryfall_uri))
+                continue
             multiverse_id = card.multiverse_ids[0] if card.multiverse_ids else None
             db_record = models.Card.query.filter_by(wotc_id=multiverse_id).first()
             if not db_record:
                 db_record = models.Card()
-            print(db_record)
-            break
+            err = db_record.update_from_scryfall(card)
+            if err:
+                return err
+            err = None
+            if not db_record.card_id:
+                err = db_record.add_object()
+            else:
+                err = db_record.update_object()
+            if err:
+                return err
+            # break
+        print(no_mid_card)
     return "SUCCESS"
             
 

@@ -236,6 +236,46 @@ class Card(db.Model, BaseModel):
         return self.card_img_uri_normal
 
     def update_from_scryfall(self, scryfall_card_obj):
+        print(scryfall_card_obj.scryfall_uri)
+        self.card_name = scryfall_card_obj.name
+        self.wotc_id = scryfall_card_obj.multiverse_ids[0]
+        if getattr(scryfall_card_obj, 'tcgplayer_id', None):
+            self.tcg_player_id = scryfall_card_obj.tcgplayer_id
+        self.scryfall_id = scryfall_card_obj.id
+        self.oracle_id = scryfall_card_obj.oracle_id
+        # Set Information
+        wotc_set = Set.query.filter_by(wotc_code=scryfall_card_obj.set).first()
+        if not wotc_set:
+            return scryfall_card_obj.scryfall_uri
+        self.set_id = wotc_set.set_id
+        if getattr(scryfall_card_obj, 'oracle_text', None):
+            self.card_oracle_text = scryfall_card_obj.oracle_text
+        self.has_foil = scryfall_card_obj.foil
+        self.card_display_cost = scryfall_card_obj.mana_cost.replace('{', '').replace('}', ' ').strip()
+        self.card_cmc = scryfall_card_obj.cmc
+        if getattr(scryfall_card_obj, 'power', None):
+            self.card_power = scryfall_card_obj.power
+        if getattr(scryfall_card_obj, 'toughness', None):
+            self.card_toughness = scryfall_card_obj.toughness
+        if getattr(scryfall_card_obj, 'loyalty', None):
+            self.card_loyalty = scryfall_card_obj.loyalty
+        type_line = scryfall_card_obj.type_line.split(' — ')
+        if len(type_line) > 1:
+            self.card_type, self.card_sub_type = type_line
+        elif len(type_line) == 1:
+            self.card_type = type_line[0]
+        if getattr(scryfall_card_obj, 'flavor_text', None):
+            self.card_flavor_text = scryfall_card_obj.flavor_text
+        self.card_rarity = scryfall_card_obj.rarity[0].upper() if scryfall_card_obj.rarity else None
+        self.card_artist = scryfall_card_obj.artist
+        if getattr(scryfall_card_obj, 'image_uris', None):
+            self.card_img_uri_normal = scryfall_card_obj.image_uris['normal']
+            self.card_img_uri_small = scryfall_card_obj.image_uris['small']
+        self.is_reserved = scryfall_card_obj.reserved
+        self.is_promo = scryfall_card_obj.promo
+        self.is_reprint = scryfall_card_obj.reprint
+        self.card_set_number = scryfall_card_obj.collector_number
+        self.card_split_card = True if scryfall_card_obj.layout == 'split' else False
         return False            
 
 class CardRuling(db.Model, BaseModel):
@@ -286,7 +326,7 @@ class Set(db.Model, BaseModel):
     name = db.Column(db.String(200))
     block_id = db.Column(db.Integer, db.ForeignKey('wotc_block.block_id'), default=None)
     release_date = db.Column(db.Date)
-    wotc_code = db.Column(db.String(3))
+    wotc_code = db.Column(db.String(10))
 
 
 class Block(db.Model, BaseModel):

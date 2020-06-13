@@ -8,19 +8,20 @@ from math import ceil
 from sqlalchemy.sql import func
 
 
-class DotDict(dict):
+class DotDict:
     def __init__(self, **attrs):
         self.__dict__.update(attrs)
 
-    def __getattr__(self, name):
-        if name in self:
-            return self[name]
-        return super().__getattr__(name)
+    # def __getattr__(self, name):
+    #     if name in self:
+    #         return self[name]
+    #     return super().__getattr__(name)
+    #     return getattr(self, name, None)
 
-    def __setattr__(self, name, value):
-        if name in self.keys():
-            self[name] = value
-        return super().__setattr__(name, value)
+    # def __setattr__(self, name, value):
+    #     if name in self.keys():
+    #         self[name] = value
+    #     return super().__setattr__(name, value)
 
 
 def paginate(query, current_page, per_page=30, stretch=2):
