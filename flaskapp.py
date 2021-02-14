@@ -141,7 +141,10 @@ def update_prices_all():
             scryfall_card = scryfall.get_card_multiverse(card.wotc_id)
             while not scryfall_card and attempts < 3:
                 sleep(.5)
-                scryfall_card = scryfall.get_card_multiverse(card.wotc_id)
+                if card.wotc_id:
+                    scryfall_card = scryfall.get_card_multiverse(card.wotc_id)
+                else:
+                    scryfall_card = scryfall.get_card_scryfall_id(card.scryfall_id)
                 attempts += 1
             if not scryfall_card:
                 card.value_last_updated = None
@@ -426,19 +429,26 @@ def update_cards_from_scryfall():
                 else:
                     err = wotc_set.update_object()
                 if err:
+                    print('ERR OUT 1:', err)
                     return err
         for card in cards:
+            # print(card)
             card = DotDict(**card)
             no_mid_card = []
-            if len(card.multiverse_ids) > 1 or len(card.multiverse_ids) == 0:
+            if len(card.multiverse_ids) > 1:
                 no_mid_card.append((card.name, card.id, card.scryfall_uri))
                 continue
             multiverse_id = card.multiverse_ids[0] if card.multiverse_ids else None
-            db_record = models.Card.query.filter_by(wotc_id=multiverse_id).first()
+            db_record = models.Card.query.filter_by(scryfall_id=card.id).first()
+            if not db_record:
+                wotc_set = models.Set.query.filter_by(wotc_code=card.set).first()
+                if wotc_set:
+                    db_record = models.Card.query.filter_by(card_name=card.name, wotc_id=wotc_set.set_id).first()
             if not db_record:
                 db_record = models.Card()
             err = db_record.update_from_scryfall(card)
             if err:
+                print('ERR OUT 2:', err)
                 return err
             err = None
             if not db_record.card_id:
@@ -446,8 +456,14 @@ def update_cards_from_scryfall():
             else:
                 err = db_record.update_object()
             if err:
+                print('ERR OUT 3:', err)
                 return err
-            # break
+            owned_card = models.OwnedCard.query.filter_by(user_id=1, card_id=db_record.card_id).first()
+            if owned_card:
+                owned_card.current_total = owned_card.price_total
+                err = owned_card.update_object()
+                if err:
+                    print("Error: {}".format(err))
         print(no_mid_card)
     return "SUCCESS"
             
@@ -462,15 +478,18 @@ def api_card_collection_add():
     if request.form:
         card_name = request.form.get('card_name', '')
         card_set = request.form.get('card_set', 0)
-        card = models.Card.query.filter_by(set_id=card_set).filter(models.Card.card_name.ilike('%{}%'.format(card_name))).first()
+        card = models.Card.query.filter_by(set_id=card_set).filter(models.Card.card_name.ilike('{}'.format(card_name))).first()
         if not card:
             return jsonify(success=False, err="Card {} not found".format(card_name))
-        new_card_in_collection = models.OwnedCard.query.filter_by(card_id=card.card_id).first()
+        new_card_in_collection = models.OwnedCard.query.filter_by(card_id=card.card_id, user_id=1).first()
         if new_card_in_collection:
             return jsonify(success=False, err="This card is already in your collection")
         new_card = models.OwnedCard()
         new_card.card_id = card.card_id
         new_card.card_count = request.form.get('card_count')
+        # new_card.foil_count = new_card.card_count
+        if card.set_id == 508:
+            new_card.foil_count = new_card.card_count
         new_card.user_id = g.user.user_id
         err = new_card.add_object()
         if err:
@@ -479,7 +498,8 @@ def api_card_collection_add():
         err = new_card.update_object()
         if err:
             return jsonify(success=False, err=err)
-        return jsonify(success=True, reload=True)
+        msg = f"Card {new_card.card.card_name}: {new_card.price_total}"
+        return jsonify(success=True, reload=True, msg=msg)
     else:
         return jsonify(success=False, err="The server did not receive any data.")
 

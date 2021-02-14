@@ -29,6 +29,19 @@ class ScryfallAPI(object):
         #     print(key, value)
         return card
 
+    def get_card_scryfall_id(self, scryfall_id):
+        target_url = "{}/cards/{}".format(self._BASE_URL, scryfall_id)
+        try:
+            resp = self._query(target_url)
+        except (requests.HTTPError, requests.ConnectTimeout) as e:
+            err = models.Errors()
+            err.add_error("Card {} not found".format(scryfall_id), path="SCRYFALL_API", action="GET_CARD_SCRYFALL")
+            return None
+        card = Card(json.loads(resp))
+        # for key, value in card.items():
+        #     print(key, value)
+        return card
+
     @staticmethod
     def _query(target):
         try:

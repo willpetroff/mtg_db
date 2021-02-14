@@ -45,12 +45,13 @@ var submitFormGeneral = function(activeObj, formData, submitPath) {
         data: formData,
         success: function(data){
             if (data.success){
+                if (data.msg) {
+                    alert(data.msg);
+                }
                 if (data.redirect){
-                    window.location.href = data.redirect
+                    window.location.href = data.redirect;
                 } else if (data.reload){
                     window.location.reload();
-                } else if (data.msg) {
-                    alert(data.msg);
                 }
                 toggleIcon(activeObj, false);
             } else {

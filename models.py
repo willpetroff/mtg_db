@@ -1,4 +1,5 @@
 import json
+import re
 import requests
 
 from datetime import datetime, date
@@ -236,9 +237,9 @@ class Card(db.Model, BaseModel):
         return self.card_img_uri_normal
 
     def update_from_scryfall(self, scryfall_card_obj):
-        print(scryfall_card_obj.scryfall_uri)
+        # print(scryfall_card_obj.scryfall_uri)
         self.card_name = scryfall_card_obj.name
-        self.wotc_id = scryfall_card_obj.multiverse_ids[0]
+        self.wotc_id = scryfall_card_obj.multiverse_ids[0] if scryfall_card_obj.multiverse_ids else None
         if getattr(scryfall_card_obj, 'tcgplayer_id', None):
             self.tcg_player_id = scryfall_card_obj.tcgplayer_id
         self.scryfall_id = scryfall_card_obj.id
@@ -251,7 +252,7 @@ class Card(db.Model, BaseModel):
         if getattr(scryfall_card_obj, 'oracle_text', None):
             self.card_oracle_text = scryfall_card_obj.oracle_text
         self.has_foil = scryfall_card_obj.foil
-        self.card_display_cost = scryfall_card_obj.mana_cost.replace('{', '').replace('}', ' ').strip()
+        self.card_display_cost = scryfall_card_obj.mana_cost.replace('{', '').replace('}', ' ').strip() if getattr(scryfall_card_obj, 'mana_cost', None) else None
         self.card_cmc = scryfall_card_obj.cmc
         if getattr(scryfall_card_obj, 'power', None):
             self.card_power = scryfall_card_obj.power
@@ -259,11 +260,18 @@ class Card(db.Model, BaseModel):
             self.card_toughness = scryfall_card_obj.toughness
         if getattr(scryfall_card_obj, 'loyalty', None):
             self.card_loyalty = scryfall_card_obj.loyalty
-        type_line = scryfall_card_obj.type_line.split(' — ')
-        if len(type_line) > 1:
-            self.card_type, self.card_sub_type = type_line
-        elif len(type_line) == 1:
-            self.card_type = type_line[0]
+        if '//' not in scryfall_card_obj.type_line:
+            type_line = scryfall_card_obj.type_line.split(' — ')
+            if len(type_line) > 1:
+                self.card_type, self.card_sub_type = type_line
+            elif len(type_line) == 1:
+                self.card_type = type_line[0]
+        else:
+            type_line = scryfall_card_obj.type_line.split(' // ')[0].split(' — ')
+            if len(type_line) > 1:
+                self.card_type, self.card_sub_type = type_line
+            elif len(type_line) == 1:
+                self.card_type = type_line[0]
         if getattr(scryfall_card_obj, 'flavor_text', None):
             self.card_flavor_text = scryfall_card_obj.flavor_text
         self.card_rarity = scryfall_card_obj.rarity[0].upper() if scryfall_card_obj.rarity else None
@@ -274,9 +282,19 @@ class Card(db.Model, BaseModel):
         self.is_reserved = scryfall_card_obj.reserved
         self.is_promo = scryfall_card_obj.promo
         self.is_reprint = scryfall_card_obj.reprint
-        self.card_set_number = scryfall_card_obj.collector_number
+        self.card_set_number = re.sub('[^0-9]', '', scryfall_card_obj.collector_number)
         self.card_split_card = True if scryfall_card_obj.layout == 'split' else False
-        return False            
+        if scryfall_card_obj.prices:
+            reg_price = scryfall_card_obj.prices['usd'] if scryfall_card_obj.prices['usd'] else None
+            foil_price = scryfall_card_obj.prices['usd_foil'] if scryfall_card_obj.prices['usd_foil'] else None
+            if reg_price or foil_price:
+                updated_card_value = CardValue()
+                updated_card_value.card_value_mid_current = reg_price
+                updated_card_value.card_foil_value = foil_price
+                if not self.card_values:
+                    self.card_values = []
+                self.card_values.append(updated_card_value)
+        return False
 
 class CardRuling(db.Model, BaseModel):
     __tablename__ = 'card_oracle_ruling'
