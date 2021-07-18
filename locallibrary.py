@@ -24,10 +24,9 @@ class DotDict:
     #     return super().__setattr__(name, value)
 
 
-def paginate(query, current_page, per_page=30, stretch=2):
-    record_count = row_count(query)
+def paginate(query, current_page, per_page=30, stretch=2, group_by=False):
+    record_count = row_count(query, group_by)
     max_page = ceil(record_count / per_page)
-
     if current_page > 1:
         query = query.offset(per_page * (current_page - 1))
     records = query.limit(per_page).all()
@@ -88,7 +87,10 @@ def pretty_exception(exc):
     return None
 
 
-def row_count(q):
-    count_q = q.statement.with_only_columns([func.count()]).order_by(None)
-    count = q.session.execute(count_q).scalar()
+def row_count(q, group_by):
+    if not group_by:
+        count_q = q.statement.with_only_columns([func.count()]).order_by(None)
+        count = q.session.execute(count_q).scalar()
+    else:
+        count = q.count()
     return count

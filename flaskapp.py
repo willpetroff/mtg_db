@@ -57,6 +57,7 @@ def user_card_list(user_id):
     order_by = request.args.get('order', 'name')
     filter_name = request.args.get('name', '')
     filter_set = request.args.get('set', 0, type=int)
+    group_by = False
     if request.form:
         filter_name = request.form.get('name', '')
         filter_set = request.form.get('set', 0, type=int)
@@ -78,8 +79,10 @@ def user_card_list(user_id):
             my_cards = my_cards.join(models.Set)
         if order_by == 'value':
             my_cards = my_cards.outerjoin(models.CardValue).filter(models.CardValue.created >= models.Card.value_last_updated)
+            my_cards = my_cards.group_by(models.OwnedCard.owned_card_id)
+            group_by = True
         my_cards = my_cards.order_by(order_by_dict[order_by])
-    my_cards, pagination = paginate(my_cards, page, per_page=50)
+    my_cards, pagination = paginate(my_cards, page, per_page=25, group_by=group_by)
     # print(my_cards)
     filter_dict = {
         'name': filter_name,
