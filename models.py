@@ -287,6 +287,8 @@ class Card(db.Model, BaseModel):
         if scryfall_card_obj.prices:
             reg_price = scryfall_card_obj.prices['usd'] if scryfall_card_obj.prices['usd'] else None
             foil_price = scryfall_card_obj.prices['usd_foil'] if scryfall_card_obj.prices['usd_foil'] else None
+            if not foil_price:
+                foil_price = scryfall_card_obj.prices['usd_etched'] if scryfall_card_obj.prices['usd_etched'] else None
             if reg_price or foil_price:
                 updated_card_value = CardValue()
                 updated_card_value.card_value_mid_current = reg_price

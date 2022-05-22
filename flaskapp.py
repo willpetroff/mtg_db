@@ -336,15 +336,9 @@ def scryfall_csv_test():
 
 @app.route('/get/collection/total')
 def get_collection_total():
-    cards = models.OwnedCard.query.filter_by(user_id=1).all()
-    total = 0
-    for card in cards:
-        total += card.price_total
-        card.current_total = card.price_total
-        err = card.update_object()
-        if err:
-            print(err)
-    return str(total)
+    total = models.OwnedCard.query.with_entities(func.sum(models.OwnedCard.current_total)).filter_by(user_id=1).first()
+    return str(total[0])
+    
 
 
 @app.route('/get/list/standard')
@@ -449,7 +443,11 @@ def update_cards_from_scryfall():
                     db_record = models.Card.query.filter_by(card_name=card.name, wotc_id=wotc_set.set_id).first()
             if not db_record:
                 db_record = models.Card()
-            err = db_record.update_from_scryfall(card)
+            try:
+                err = db_record.update_from_scryfall(card)
+            except Exception as e:
+                print(e, card)
+                err = None
             if err:
                 print('ERR OUT 2:', err)
                 return err
@@ -481,7 +479,11 @@ def api_card_collection_add():
     if request.form:
         card_name = request.form.get('card_name', '')
         card_set = request.form.get('card_set', 0)
-        card = models.Card.query.filter_by(set_id=card_set).filter(models.Card.card_name.ilike('{}'.format(card_name))).first()
+        card_set_number = request.form.get('card_set_number', 0)
+        card = models.Card.query.filter_by(set_id=card_set).filter(models.Card.card_name.ilike('%{}%'.format(card_name)))
+        if card_set_number:
+            card = card.filter_by(card_set_number=card_set_number)
+        card = card.first()
         if not card:
             return jsonify(success=False, err="Card {} not found".format(card_name))
         new_card_in_collection = models.OwnedCard.query.filter_by(card_id=card.card_id, user_id=1).first()
