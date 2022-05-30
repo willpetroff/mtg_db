@@ -35,16 +35,15 @@ def before_request():
 
 @app.route('/')
 def index():
-    # DB Test
+    # # DB Test
     # card = models.Card.query.first()
     # print(card.card_name)
-    # Scryfall test
+    # # Scryfall test
     # card = models.Card.query.first()
     # card = scryfall.get_card_multiverse(card.wotc_id)
-    # print(card.prices)
-    # print(card.legalities)
-    # sentences = sent_tokenize(card.card_oracle_text)
-    # words = word_tokenize(card.card_oracle_text)
+    # # print(card.__dict__.keys())
+    # sentences = sent_tokenize(card.oracle_text)
+    # words = word_tokenize(card.oracle_text)
     # print(sentences)
     # print(words)
     return "INDEX"
@@ -55,6 +54,8 @@ def user_card_list(user_id):
     page = request.args.get('page', 1, type=int)
     my_cards = models.OwnedCard.query.filter_by(user_id=user_id).join(models.Card)
     order_by = request.args.get('order', 'name')
+    if not order_by:
+        order_by = 'name'
     filter_name = request.args.get('name', '')
     filter_set = request.args.get('set', 0, type=int)
     group_by = False
@@ -72,15 +73,10 @@ def user_card_list(user_id):
             'rarity': models.Card.card_rarity,
             'count': models.OwnedCard.card_count,
             'set': models.Set.name,
-            # 'value': case([(models.CardValue.card_value_mid_current != 'null', models.CardValue.card_value_mid_current)], else_=models.CardValue.card_foil_value).desc()
             'value': models.OwnedCard.current_total.desc()
         }
         if order_by == 'set':
             my_cards = my_cards.join(models.Set)
-        if order_by == 'value':
-            my_cards = my_cards.outerjoin(models.CardValue).filter(models.CardValue.created >= models.Card.value_last_updated)
-            my_cards = my_cards.group_by(models.OwnedCard.owned_card_id)
-            group_by = True
         my_cards = my_cards.order_by(order_by_dict[order_by])
     my_cards, pagination = paginate(my_cards, page, per_page=25, group_by=group_by)
     # print(my_cards)
